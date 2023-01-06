@@ -1,4 +1,4 @@
-/* Copyright 2009-2015,2018-2019
+/* Copyright 2009-2015,2018-2019,2022
      Free Software Foundation, Inc.
 
    This file is part of Guile.
@@ -324,6 +324,43 @@ scm_c_take_typed_bytevector (signed char *contents, size_t len,
 
   return ret;
 }
+
+SCM_DEFINE (scm_bytevector_slice, "bytevector-slice", 2, 1, 0,
+            (SCM bv, SCM offset, SCM size),
+            "Return the slice of @var{bv} starting at @var{offset} and counting "
+            "@var{size} bytes.  When @var{size} is omitted, the slice covers all "
+            "of @var{bv} starting from @var{offset}.  The returned slice shares "
+            "storage with @var{bv}: changes to the slice are visible in @var{bv} "
+            "and vice-versa.")
+#define FUNC_NAME s_scm_bytevector_slice
+{
+  SCM ret;
+  size_t c_offset, c_size;
+
+  SCM_VALIDATE_BYTEVECTOR (1, bv);
+  c_offset = scm_to_size_t (offset);
+
+  if (SCM_UNBNDP (size))
+    {
+      if (c_offset < SCM_BYTEVECTOR_LENGTH (bv))
+        c_size = SCM_BYTEVECTOR_LENGTH (bv) - c_offset;
+      else
+        c_size = 0;
+    }
+  else
+    c_size = scm_to_size_t (size);
+
+  if (c_offset + c_size > SCM_BYTEVECTOR_LENGTH (bv))
+    scm_out_of_range (FUNC_NAME, offset);
+
+  ret = make_bytevector_from_buffer (c_size,
+                                     SCM_BYTEVECTOR_CONTENTS (bv) + c_offset,
+                                     SCM_ARRAY_ELEMENT_TYPE_VU8);
+  SCM_BYTEVECTOR_SET_PARENT (ret, bv);
+
+  return ret;
+}
+#undef FUNC_NAME
 
 /* Shrink BV to C_NEW_LEN (which is assumed to be smaller than its current
    size) and return the new bytevector (possibly different from BV).  */
